@@ -9,6 +9,8 @@ import re
 import datetime
 import sys
 import ast
+import logging
+logger = logging.getLogger(__name__)
 
 sys.path.append('../../')
 
@@ -375,7 +377,14 @@ def run_gpt_prompt_task_decomp(persona,
       task = k[0]
       if task[-1] == ".": 
         task = task[:-1]
-      duration = int(k[1].split(",")[0].strip())
+      # duration = int(k[1].split(",")[0].strip())
+      try:
+        duration = int(k[1].split(",")[0].strip())
+      except (IndexError, ValueError):
+        # 防御性修复：跳过格式异常的任务
+        print(f"[WARN] Skipping malformed task line: {k}")
+        duration = 0
+
       cr += [[task, duration]]
 
     total_expected_min = int(prompt.split("(total duration in minutes")[-1]
@@ -399,7 +408,13 @@ def run_gpt_prompt_task_decomp(persona,
       for i in range(1, 6): 
         curr_min_slot[-1 * i] = last_task
     elif len(curr_min_slot) < total_expected_min: 
+      # last_task = curr_min_slot[-1]
+      # 修复方案
+      if not curr_min_slot:
+        logger.warning(f"[run_gpt_prompt] curr_min_slot is empty for task {task}. GPT output: {curr_gpt_response}")
+        return []  # 或 return default_fallback_value
       last_task = curr_min_slot[-1]
+      
       for i in range(total_expected_min - len(curr_min_slot)):
         curr_min_slot += [last_task]
 
